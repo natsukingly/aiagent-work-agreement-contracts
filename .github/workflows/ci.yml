@@ -1,0 +1,239 @@
+name: "CI"
+
+env:
+  DOTENV_CONFIG_PATH: "./.env.example"
+  FOUNDRY_PROFILE: "ci"
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - "main"
+
+jobs:
+  ### Run Linters ###
+  lint:
+    name: "Run Linters"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Check out the repo"
+        uses: "actions/checkout@v4"
+        with:
+          submodules: "recursive"
+
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: "Install Node.js"
+        uses: "actions/setup-node@v3"
+        with:
+          cache: "yarn"
+          node-version: 20
+
+      - name: "Install the Node.js dependencies"
+        run: "yarn install --immutable --inline-builds"
+
+      - name: "Lint the contracts"
+        run: "yarn lint:sol"
+
+      - name: "Add lint summary"
+        run: |
+          echo "## Lint results" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+
+  ### Build Contracts ###
+  build:
+    name: "Build Contracts"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Check out the repo"
+        uses: "actions/checkout@v4"
+        with:
+          submodules: "recursive"
+
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: "Install Node.js"
+        uses: "actions/setup-node@v3"
+        with:
+          cache: "yarn"
+          node-version: 20
+
+      - name: "Install the Node.js dependencies"
+        run: "yarn install --immutable --inline-builds"
+
+      - name: "Hardhat: Compile the contracts"
+        run: |
+          yarn clean
+          yarn compile
+
+      - name: "Forge: Build the contracts and print their size"
+        run: |
+          forge --version
+          forge build --sizes
+
+      - name: "Cache the build and the node modules so that they can be re-used by the other jobs"
+        uses: "actions/cache/save@v3"
+        with:
+          key: "build-and-modules-${{ github.sha }}"
+          path: |
+            artifacts
+            cache_hardhat
+            cache
+            node_modules
+            out
+
+      - name: "Add build summary"
+        run: |
+          echo "## Build result" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+
+  ### Run Hardhat Tests ###
+  hardhat-test:
+    name: "Run Hardhat Tests"
+    needs: ["lint", "build"]
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Check out the repo"
+        uses: "actions/checkout@v4"
+        with:
+          submodules: "recursive"
+
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: "Restore the cached build and the node modules"
+        uses: "actions/cache/restore@v3"
+        with:
+          fail-on-cache-miss: true
+          key: "build-and-modules-${{ github.sha }}"
+          path: |
+            artifacts
+            cache_hardhat
+            cache
+            node_modules
+            out
+
+      - name: "Run Hardhat tests"
+        run: "yarn test"
+
+      - name: "Add Hardhat test summary"
+        run: |
+          echo "## Hardhat Tests result" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+
+  ### Run Forge Tests ###
+  forge-test:
+    name: "Run Forge Tests"
+    needs: ["lint", "build"]
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Check out the repo"
+        uses: "actions/checkout@v4"
+        with:
+          submodules: "recursive"
+
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: "Restore the cached build and the node modules"
+        uses: "actions/cache/restore@v3"
+        with:
+          fail-on-cache-miss: true
+          key: "build-and-modules-${{ github.sha }}"
+          path: |
+            artifacts
+            cache_hardhat
+            cache
+            node_modules
+            out
+
+      - name: "Show the Foundry config"
+        run: "forge config"
+
+      - name: "Generate fuzz seed that changes weekly to avoid burning through RPC allowance"
+        run: >
+          echo "FOUNDRY_FUZZ_SEED=$(
+            echo $(($EPOCHSECONDS - $EPOCHSECONDS % 604800))
+          )" >> $GITHUB_ENV
+
+      - name: "Run forge tests"
+        run: "forge test"
+
+      - name: "Add Forge test summary"
+        run: |
+          echo "## Forge Tests result" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+
+  ### Run Hardhat Coverage ###
+  hardhat-coverage:
+    name: "Run Hardhat Coverage"
+    needs: ["lint", "build"]
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Check out the repo"
+        uses: "actions/checkout@v4"
+        with:
+          submodules: "recursive"
+
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: "Restore the cached build and the node modules"
+        uses: "actions/cache/restore@v3"
+        with:
+          fail-on-cache-miss: true
+          key: "build-and-modules-${{ github.sha }}"
+          path: |
+            artifacts
+            cache_hardhat
+            cache
+            node_modules
+            out
+
+      - name: "Generate the TypeChain bindings"
+        run: "yarn typechain"
+
+      - name: "Generate the coverage report"
+        run: "yarn coverage"
+
+      - name: "Add Hardhat coverage summary"
+        run: |
+          echo "## Hardhat Coverage results" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+
+  ### Run Forge Coverage ###
+  forge-coverage:
+    name: "Run Forge Coverage"
+    needs: ["lint", "build"]
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Check out the repo"
+        uses: "actions/checkout@v4"
+        with:
+          submodules: "recursive"
+
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: "Restore the cached build and the node modules"
+        uses: "actions/cache/restore@v3"
+        with:
+          fail-on-cache-miss: true
+          key: "build-and-modules-${{ github.sha }}"
+          path: |
+            artifacts
+            cache_hardhat
+            cache
+            node_modules
+            out
+
+      - name: "Run coverage with lcov output"
+        run: "forge coverage --report lcov"
+
+      - name: "Add Forge coverage summary"
+        run: |
+          echo "## Forge Coverage results" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
