@@ -158,7 +158,7 @@ contract WorkAgreementWithDeadline_Test is Test {
         // 4. autoCancelIfDeadlinePassed
         //    => InProgress & deadline経過 => キャンセル
         vm.expectEmit(true, true, false, false);
-        emit JobDeadlineCancelled(jobId);
+        emit WorkAgreement.JobDeadlineCancelled(jobId);
 
         // 誰でも呼べる
         workAgreement.autoCancelIfDeadlinePassed(jobId);
