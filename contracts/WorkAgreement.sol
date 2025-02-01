@@ -2,7 +2,11 @@
 pragma solidity ^0.8.23;
 
 /**
- * @title 業務委託契約
+ * @title 業務委託契約 with Deadline Logic
+ * @notice
+ *  - 納品期限(deadline)を過ぎたら納品不可
+ *  - 納品前にdeadlineを超過したら誰でもキャンセル可(報酬はクライアントに返還)
+ *  - 納品が期限を超えて行われた場合にペナルティ計算の例をコメントで示す
  */
 interface IERC20 {
     function transferFrom(
@@ -24,14 +28,13 @@ contract WorkAgreement {
     // --------------------------------------------------------------------------------
 
     enum JobStatus {
-        Open, // 募集中
-        InProgress, // 作業中
-        Delivered, // 納品完了(承認待ち)
-        Completed, // 承認済み
-        Disputed, // 紛争中
-        Resolved, // 紛争解決済み（報酬配分も完了）
-        Cancelled // キャンセル
-
+        Open,
+        InProgress,
+        Delivered,
+        Completed,
+        Disputed,
+        Resolved,
+        Cancelled
     }
 
     // --------------------------------------------------------------------------------
@@ -39,13 +42,16 @@ contract WorkAgreement {
     // --------------------------------------------------------------------------------
 
     struct Job {
-        address client; // 発注(AI Agent)
-        address contractor; // 受注(AI Agent)
-        uint256 depositAmount; // デポジットされた報酬額
-        address tokenAddress; // ERC20トークンのアドレス
-        JobStatus status; // 仕事のステータス
-        string jobURI; // 仕事詳細 (IPFS/ArweaveなどのURI)
-        uint256 deliveredTimestamp; // 納品時刻 (自動承認のため)
+        address client;
+        address contractor;
+        uint256 depositAmount;
+        address tokenAddress;
+        JobStatus status;
+        string title;
+        string description;
+        uint256 deadline;
+        string jobURI;
+        uint256 deliveredTimestamp;
     }
 
     // --------------------------------------------------------------------------------
@@ -55,11 +61,7 @@ contract WorkAgreement {
     uint256 public jobCounter;
     mapping(uint256 => Job) public jobs;
 
-    // 紛争解決者(第三者/DAOなど)のアドレス
     address public disputeResolver;
-
-    // TODO:納品後どのくらい時間が経過したら自動承認になるか
-    // 例: 7日 (86400秒 = 1日)
     uint256 public constant AUTO_APPROVE_PERIOD = 7 days;
 
     // --------------------------------------------------------------------------------
@@ -71,6 +73,9 @@ contract WorkAgreement {
         address indexed client,
         uint256 depositAmount,
         address token,
+        string title,
+        string description,
+        uint256 deadline,
         string jobURI
     );
     event JobApplied(uint256 indexed jobId, address indexed contractor);
@@ -80,10 +85,21 @@ contract WorkAgreement {
     event JobDisputed(uint256 indexed jobId);
     event JobResolved(uint256 indexed jobId, bool disputeUpheld);
     event JobCancelled(uint256 indexed jobId);
+    event JobDeadlineCancelled(uint256 indexed jobId); // 期限超過によるキャンセル
 
     // --------------------------------------------------------------------------------
     // Modifiers
     // --------------------------------------------------------------------------------
+
+    modifier validJobId(uint256 _jobId) {
+        require(_jobId != 0 && _jobId <= jobCounter, "Invalid job status");
+        _;
+    }
+
+    modifier validStatus(uint256 _jobId, JobStatus _requiredStatus) {
+        require(jobs[_jobId].status == _requiredStatus, "Invalid job status");
+        _;
+    }
 
     modifier onlyClient(uint256 _jobId) {
         require(msg.sender == jobs[_jobId].client, "Only the client can call this function");
@@ -100,11 +116,6 @@ contract WorkAgreement {
         _;
     }
 
-    modifier validStatus(uint256 _jobId, JobStatus _requiredStatus) {
-        require(jobs[_jobId].status == _requiredStatus, "Invalid job status");
-        _;
-    }
-
     // --------------------------------------------------------------------------------
     // Constructor
     // --------------------------------------------------------------------------------
@@ -114,63 +125,82 @@ contract WorkAgreement {
     }
 
     // --------------------------------------------------------------------------------
-    // Public / External Functions
+    // Main Functions
     // --------------------------------------------------------------------------------
 
     /**
-     * @notice クライアントが仕事を作成する(報酬のデポジットを含む)
+     * @notice クライアントが仕事を作成する(報酬のデポジット含む)
      */
     function createJob(
         address _tokenAddress,
         uint256 _depositAmount,
+        string calldata _title,
+        string calldata _description,
+        uint256 _deadline,
         string calldata _jobURI
     )
         external
-        returns (uint256)
+        returns (uint256 jobId)
     {
         require(_depositAmount > 0, "Deposit must be greater than 0");
         require(_tokenAddress != address(0), "Invalid token address");
+        // 例えば: require(_deadline > block.timestamp, "deadline must be in the future");
 
         IERC20 token = IERC20(_tokenAddress);
         bool success = token.transferFrom(msg.sender, address(this), _depositAmount);
         require(success, "Token transfer failed");
 
         jobCounter++;
-        uint256 newJobId = jobCounter;
+        jobId = jobCounter;
 
-        jobs[newJobId] = Job({
+        jobs[jobId] = Job({
             client: msg.sender,
             contractor: address(0),
             depositAmount: _depositAmount,
             tokenAddress: _tokenAddress,
             status: JobStatus.Open,
+            title: _title,
+            description: _description,
+            deadline: _deadline,
             jobURI: _jobURI,
             deliveredTimestamp: 0
         });
 
-        emit JobCreated(newJobId, msg.sender, _depositAmount, _tokenAddress, _jobURI);
-        return newJobId;
+        emit JobCreated(
+            jobId,
+            msg.sender,
+            _depositAmount,
+            _tokenAddress,
+            _title,
+            _description,
+            _deadline,
+            _jobURI
+        );
     }
 
     /**
-     * @notice コントラクター(AI Agent)が仕事に応募
+     * @notice コントラクターが応募
      */
-    function applyForJob(uint256 _jobId) external validStatus(_jobId, JobStatus.Open) {
-        // 簡易的に先着1名で確定
+    function applyForJob(uint256 _jobId)
+        external
+        validJobId(_jobId)
+        validStatus(_jobId, JobStatus.Open)
+    {
         require(jobs[_jobId].contractor == address(0), "Contractor already assigned");
-        jobs[_jobId].contractor = msg.sender;
 
+        jobs[_jobId].contractor = msg.sender;
         emit JobApplied(_jobId, msg.sender);
     }
 
     /**
-     * @notice クライアントが正式に採用(Contractを開始)
+     * @notice クライアントが契約開始
      */
     function startContract(
         uint256 _jobId,
         address _selectedContractor
     )
         external
+        validJobId(_jobId)
         onlyClient(_jobId)
         validStatus(_jobId, JobStatus.Open)
     {
@@ -178,31 +208,49 @@ contract WorkAgreement {
             jobs[_jobId].contractor == _selectedContractor, "Not matched with selected contractor"
         );
         jobs[_jobId].status = JobStatus.InProgress;
-
         emit JobStarted(_jobId, _selectedContractor);
     }
 
     /**
-     * @notice コントラクターが成果物納品
+     * @notice コントラクターが納品
+     * @dev 期限を過ぎていればrevertする例
      */
     function deliverWork(uint256 _jobId)
         external
+        validJobId(_jobId)
         onlyContractor(_jobId)
         validStatus(_jobId, JobStatus.InProgress)
     {
         Job storage job = jobs[_jobId];
+
+        // 期限厳守の例
+        require(block.timestamp <= job.deadline, "Deadline passed, cannot deliver");
+
+        // （もしdeadline超過して納品したい場合、ペナルティ計算したうえで実行可能にするロジックに差し替えてもOK）
+        // 例:
+        // if (block.timestamp > job.deadline) {
+        //     // 1日(86400秒)遅れるごとに10%減額する、など
+        //     uint256 daysLate = (block.timestamp - job.deadline) / 1 days;
+        //     uint256 penaltyRate = daysLate * 10; // % per day
+        //     if (penaltyRate >= 100) {
+        //         penaltyRate = 100;
+        //     }
+        //     uint256 penalty = (job.depositAmount * penaltyRate) / 100;
+        //     job.depositAmount = job.depositAmount - penalty;
+        // }
+
         job.status = JobStatus.Delivered;
-        // TODO:納品時刻を記録
         job.deliveredTimestamp = block.timestamp;
 
         emit JobDelivered(_jobId);
     }
 
     /**
-     * @notice クライアントが納品物を承認し、仕事を完了
+     * @notice 納品後にクライアントが承認
      */
     function approveAndComplete(uint256 _jobId)
         external
+        validJobId(_jobId)
         onlyClient(_jobId)
         validStatus(_jobId, JobStatus.Delivered)
     {
@@ -211,10 +259,11 @@ contract WorkAgreement {
     }
 
     /**
-     * @notice コントラクターが報酬を引き出す (Completed の状態のみ)
+     * @notice コントラクターが報酬受け取り
      */
     function withdrawPayment(uint256 _jobId)
         external
+        validJobId(_jobId)
         onlyContractor(_jobId)
         validStatus(_jobId, JobStatus.Completed)
     {
@@ -229,47 +278,70 @@ contract WorkAgreement {
     }
 
     /**
-     * @notice 納品から一定時間経過後、誰でも呼び出して自動承認できる
-     * @dev 期間内にクライアントがDisputeを起こさなければCompletedにする
+     * @notice 自動承認 (Delivered→Completed)
      */
-    function autoApproveIfTimeoutPassed(uint256 _jobId) external {
-        Job storage job = jobs[_jobId];
-        require(job.status == JobStatus.Delivered, "Job is not in Delivered status");
-
+    function autoApproveIfTimeoutPassed(uint256 _jobId)
+        external
+        validJobId(_jobId)
+        validStatus(_jobId, JobStatus.Delivered)
+    {
         require(
-            block.timestamp >= job.deliveredTimestamp + AUTO_APPROVE_PERIOD,
+            block.timestamp >= jobs[_jobId].deliveredTimestamp + AUTO_APPROVE_PERIOD,
             "Auto-approval period not passed"
         );
 
-        // 紛争に移行されていなければ自動承認
-        job.status = JobStatus.Completed;
+        jobs[_jobId].status = JobStatus.Completed;
         emit JobCompleted(_jobId);
     }
 
     /**
-     * @notice 納品物に異議がある場合、クライアント or コントラクターがDisputeを開始
+     * @notice 納品前に期限切れになったらキャンセル可能 (InProgress & deadline過ぎ)
+     * @dev 誰でも呼べる例（本来はclientかcontractor、またはチェーン上の自動サービスなど？）
      */
-    function raiseDispute(uint256 _jobId) external {
+    function autoCancelIfDeadlinePassed(uint256 _jobId) external validJobId(_jobId) {
+        Job storage job = jobs[_jobId];
+
+        // 「InProgress状態かつ未納品」を確認
+        require(job.status == JobStatus.InProgress, "Invalid job status");
+        require(block.timestamp > job.deadline, "Deadline not passed yet");
+
+        // 自動キャンセル
+        job.status = JobStatus.Cancelled;
+
+        // depositをクライアントに返す
+        IERC20 token = IERC20(job.tokenAddress);
+        uint256 amount = job.depositAmount;
+        job.depositAmount = 0;
+
+        bool success = token.transfer(job.client, amount);
+        require(success, "Refund to client failed");
+
+        emit JobDeadlineCancelled(_jobId);
+    }
+
+    /**
+     * @notice 納品物に異議がある場合は紛争へ (InProgress or Delivered)
+     */
+    function raiseDispute(uint256 _jobId) external validJobId(_jobId) {
         Job storage job = jobs[_jobId];
         require(msg.sender == job.client || msg.sender == job.contractor, "Not authorized");
-        // 納品後 or 作業中なら紛争を起こせる（CompletedやResolvedになる前に止める）
         require(
             job.status == JobStatus.InProgress || job.status == JobStatus.Delivered,
             "Cannot dispute in this status"
         );
         job.status = JobStatus.Disputed;
-
         emit JobDisputed(_jobId);
     }
 
     /**
-     * @notice 紛争解決者が裁定(Disputeを解決)
+     * @notice 紛争解決者が裁定
      */
     function resolveDispute(
         uint256 _jobId,
         bool _disputeUpheld
     )
         external
+        validJobId(_jobId)
         onlyDisputeResolver
         validStatus(_jobId, JobStatus.Disputed)
     {
@@ -281,7 +353,7 @@ contract WorkAgreement {
         job.depositAmount = 0;
 
         if (_disputeUpheld) {
-            // クライアント勝訴 -> デポジット返還
+            // クライアント勝訴 -> 返金
             bool success = token.transfer(job.client, amount);
             require(success, "Refund to client failed");
         } else {
@@ -294,10 +366,11 @@ contract WorkAgreement {
     }
 
     /**
-     * @notice クライアントが仕事をキャンセル
+     * @notice クライアントが仕事をキャンセル (Openのみ)
      */
     function cancelJob(uint256 _jobId)
         external
+        validJobId(_jobId)
         onlyClient(_jobId)
         validStatus(_jobId, JobStatus.Open)
     {
@@ -314,20 +387,26 @@ contract WorkAgreement {
     }
 
     // --------------------------------------------------------------------------------
-    // View / Utility functions
+    // View / Utility Functions
     // --------------------------------------------------------------------------------
 
+    /**
+     * @notice Jobの情報を返す
+     */
     function getJob(uint256 _jobId)
         external
         view
         returns (
-            address client,
-            address contractor,
-            uint256 depositAmount,
-            address tokenAddress,
-            JobStatus status,
-            string memory jobURI,
-            uint256 deliveredAt
+            address client_,
+            address contractor_,
+            uint256 depositAmount_,
+            address tokenAddress_,
+            JobStatus status_,
+            string memory title_,
+            string memory description_,
+            uint256 deadline_,
+            string memory jobURI_,
+            uint256 deliveredAt_
         )
     {
         Job storage job = jobs[_jobId];
@@ -337,16 +416,15 @@ contract WorkAgreement {
             job.depositAmount,
             job.tokenAddress,
             job.status,
+            job.title,
+            job.description,
+            job.deadline,
             job.jobURI,
             job.deliveredTimestamp
         );
     }
 
-    /**
-     * @notice 紛争解決者のアドレスをセット (要アクセス制御検討)
-     */
     function setDisputeResolver(address _resolver) external {
-        // 本サンプルでは誰でも呼べる。実務ではOwnable等の導入推奨
         disputeResolver = _resolver;
     }
 }
