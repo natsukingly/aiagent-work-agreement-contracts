@@ -59,9 +59,7 @@ contract WorkAgreement {
     address public disputeResolver;
     uint256 public constant AUTO_APPROVE_PERIOD = 7 days;
 
-    // 管理者（owner）: 特定の操作の制御に利用
     address public owner;
-    // 再入可能性対策用のロック変数
     bool private locked;
 
     // --------------------------------------------------------------------------------
