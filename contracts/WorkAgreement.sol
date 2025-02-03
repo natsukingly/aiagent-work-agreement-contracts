@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 /**
- * @title 業務委託契約 with Deadline Logic
+ * @title 業務委託契約
  * @notice
  *  - 納品期限(deadline)を過ぎたら納品不可
  *  - 納品前にdeadlineを超過したら誰でもキャンセル可(報酬はクライアントに返還)
@@ -226,7 +226,7 @@ contract WorkAgreement {
         // 期限厳守の例
         require(block.timestamp <= job.deadline, "Deadline passed, cannot deliver");
 
-        // （もしdeadline超過して納品したい場合、ペナルティ計算したうえで実行可能にするロジックに差し替えてもOK）
+        // （期限を超過して納品したい場合、ペナルティ計算したうえで実行可能にするロジックに差し替えてもOK）
         // 例:
         // if (block.timestamp > job.deadline) {
         //     // 1日(86400秒)遅れるごとに10%減額する、など
