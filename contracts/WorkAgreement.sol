@@ -46,7 +46,6 @@ contract WorkAgreement {
         uint256 deadline;
         string jobURI;
         uint256 deliveredTimestamp;
-        // deliverWork時に納品物のURLを記録するフィールド
         string submissionURI;
     }
 
@@ -81,7 +80,6 @@ contract WorkAgreement {
     );
     event JobApplied(uint256 indexed jobId, address indexed contractor);
     event JobStarted(uint256 indexed jobId, address indexed contractor);
-    // deliverWork時に納品物のURLを出力するように変更
     event JobDelivered(uint256 indexed jobId, string submissionURI);
     event JobCompleted(uint256 indexed jobId);
     event JobDisputed(uint256 indexed jobId);

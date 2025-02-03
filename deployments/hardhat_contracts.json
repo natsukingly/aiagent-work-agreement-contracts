@@ -5,7 +5,7 @@
       "chainId": "11155111",
       "contracts": {
         "WorkAgreement": {
-          "address": "0xC2800B015B88497BA30648b51a4CAA63BBaC12D8",
+          "address": "0xf5b7EFc4E95403B9715c63b47beEFf75C574e269",
           "abi": [
             {
               "inputs": [
@@ -139,6 +139,12 @@
                   "internalType": "uint256",
                   "name": "jobId",
                   "type": "uint256"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "string",
+                  "name": "submissionURI",
+                  "type": "string"
                 }
               ],
               "name": "JobDelivered",
@@ -314,7 +320,7 @@
                   "type": "uint256"
                 }
               ],
-              "stateMutability": "nonpayable",
+              "stateMutability": "payable",
               "type": "function"
             },
             {
@@ -323,6 +329,11 @@
                   "internalType": "uint256",
                   "name": "_jobId",
                   "type": "uint256"
+                },
+                {
+                  "internalType": "string",
+                  "name": "_submissionURI",
+                  "type": "string"
                 }
               ],
               "name": "deliverWork",
@@ -402,6 +413,11 @@
                   "internalType": "uint256",
                   "name": "deliveredAt_",
                   "type": "uint256"
+                },
+                {
+                  "internalType": "string",
+                  "name": "submissionURI_",
+                  "type": "string"
                 }
               ],
               "stateMutability": "view",
@@ -479,6 +495,24 @@
                   "internalType": "uint256",
                   "name": "deliveredTimestamp",
                   "type": "uint256"
+                },
+                {
+                  "internalType": "string",
+                  "name": "submissionURI",
+                  "type": "string"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "owner",
+              "outputs": [
+                {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
                 }
               ],
               "stateMutability": "view",
@@ -558,6 +592,10 @@
               "outputs": [],
               "stateMutability": "nonpayable",
               "type": "function"
+            },
+            {
+              "stateMutability": "payable",
+              "type": "receive"
             }
           ]
         }
