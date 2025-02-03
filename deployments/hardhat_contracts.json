@@ -1,63 +1,352 @@
 {
-  "31337": [
+  "11155111": [
     {
-      "name": "hardhat",
-      "chainId": "31337",
+      "name": "sepolia",
+      "chainId": "11155111",
       "contracts": {
-        "Lock": {
-          "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        "WorkAgreement": {
+          "address": "0xf5b7EFc4E95403B9715c63b47beEFf75C574e269",
           "abi": [
             {
               "inputs": [
                 {
-                  "internalType": "uint256",
-                  "name": "_unlockTime",
-                  "type": "uint256"
+                  "internalType": "address",
+                  "name": "_disputeResolver",
+                  "type": "address"
                 }
               ],
-              "stateMutability": "payable",
+              "stateMutability": "nonpayable",
               "type": "constructor"
-            },
-            {
-              "inputs": [],
-              "name": "Lock_CallerNotOwner",
-              "type": "error"
-            },
-            {
-              "inputs": [],
-              "name": "Lock_CannotWithdrawYet",
-              "type": "error"
-            },
-            {
-              "inputs": [],
-              "name": "Lock_UnlockTimeShouldBeInTheFuture",
-              "type": "error"
             },
             {
               "anonymous": false,
               "inputs": [
                 {
-                  "indexed": false,
+                  "indexed": true,
                   "internalType": "uint256",
-                  "name": "amount",
+                  "name": "jobId",
                   "type": "uint256"
+                },
+                {
+                  "indexed": true,
+                  "internalType": "address",
+                  "name": "contractor",
+                  "type": "address"
+                }
+              ],
+              "name": "JobApplied",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": true,
+                  "internalType": "uint256",
+                  "name": "jobId",
+                  "type": "uint256"
+                }
+              ],
+              "name": "JobCancelled",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": true,
+                  "internalType": "uint256",
+                  "name": "jobId",
+                  "type": "uint256"
+                }
+              ],
+              "name": "JobCompleted",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": true,
+                  "internalType": "uint256",
+                  "name": "jobId",
+                  "type": "uint256"
+                },
+                {
+                  "indexed": true,
+                  "internalType": "address",
+                  "name": "client",
+                  "type": "address"
                 },
                 {
                   "indexed": false,
                   "internalType": "uint256",
-                  "name": "when",
+                  "name": "depositAmount",
+                  "type": "uint256"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "address",
+                  "name": "token",
+                  "type": "address"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "string",
+                  "name": "title",
+                  "type": "string"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "string",
+                  "name": "description",
+                  "type": "string"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "uint256",
+                  "name": "deadline",
+                  "type": "uint256"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "string",
+                  "name": "jobURI",
+                  "type": "string"
+                }
+              ],
+              "name": "JobCreated",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": true,
+                  "internalType": "uint256",
+                  "name": "jobId",
                   "type": "uint256"
                 }
               ],
-              "name": "Withdrawal",
+              "name": "JobDeadlineCancelled",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": true,
+                  "internalType": "uint256",
+                  "name": "jobId",
+                  "type": "uint256"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "string",
+                  "name": "submissionURI",
+                  "type": "string"
+                }
+              ],
+              "name": "JobDelivered",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": true,
+                  "internalType": "uint256",
+                  "name": "jobId",
+                  "type": "uint256"
+                }
+              ],
+              "name": "JobDisputed",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": true,
+                  "internalType": "uint256",
+                  "name": "jobId",
+                  "type": "uint256"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "bool",
+                  "name": "disputeUpheld",
+                  "type": "bool"
+                }
+              ],
+              "name": "JobResolved",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": true,
+                  "internalType": "uint256",
+                  "name": "jobId",
+                  "type": "uint256"
+                },
+                {
+                  "indexed": true,
+                  "internalType": "address",
+                  "name": "contractor",
+                  "type": "address"
+                }
+              ],
+              "name": "JobStarted",
               "type": "event"
             },
             {
               "inputs": [],
-              "name": "owner",
+              "name": "AUTO_APPROVE_PERIOD",
               "outputs": [
                 {
-                  "internalType": "address payable",
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_jobId",
+                  "type": "uint256"
+                }
+              ],
+              "name": "applyForJob",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_jobId",
+                  "type": "uint256"
+                }
+              ],
+              "name": "approveAndComplete",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_jobId",
+                  "type": "uint256"
+                }
+              ],
+              "name": "autoApproveIfTimeoutPassed",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_jobId",
+                  "type": "uint256"
+                }
+              ],
+              "name": "autoCancelIfDeadlinePassed",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_jobId",
+                  "type": "uint256"
+                }
+              ],
+              "name": "cancelJob",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "_tokenAddress",
+                  "type": "address"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "_depositAmount",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "string",
+                  "name": "_title",
+                  "type": "string"
+                },
+                {
+                  "internalType": "string",
+                  "name": "_description",
+                  "type": "string"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "_deadline",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "string",
+                  "name": "_jobURI",
+                  "type": "string"
+                }
+              ],
+              "name": "createJob",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "jobId",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "payable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_jobId",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "string",
+                  "name": "_submissionURI",
+                  "type": "string"
+                }
+              ],
+              "name": "deliverWork",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "disputeResolver",
+              "outputs": [
+                {
+                  "internalType": "address",
                   "name": "",
                   "type": "address"
                 }
@@ -66,8 +355,77 @@
               "type": "function"
             },
             {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_jobId",
+                  "type": "uint256"
+                }
+              ],
+              "name": "getJob",
+              "outputs": [
+                {
+                  "internalType": "address",
+                  "name": "client_",
+                  "type": "address"
+                },
+                {
+                  "internalType": "address",
+                  "name": "contractor_",
+                  "type": "address"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "depositAmount_",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "address",
+                  "name": "tokenAddress_",
+                  "type": "address"
+                },
+                {
+                  "internalType": "enum WorkAgreement.JobStatus",
+                  "name": "status_",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "string",
+                  "name": "title_",
+                  "type": "string"
+                },
+                {
+                  "internalType": "string",
+                  "name": "description_",
+                  "type": "string"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "deadline_",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "string",
+                  "name": "jobURI_",
+                  "type": "string"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "deliveredAt_",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "string",
+                  "name": "submissionURI_",
+                  "type": "string"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
               "inputs": [],
-              "name": "unlockTime",
+              "name": "jobCounter",
               "outputs": [
                 {
                   "internalType": "uint256",
@@ -79,11 +437,165 @@
               "type": "function"
             },
             {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "name": "jobs",
+              "outputs": [
+                {
+                  "internalType": "address",
+                  "name": "client",
+                  "type": "address"
+                },
+                {
+                  "internalType": "address",
+                  "name": "contractor",
+                  "type": "address"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "depositAmount",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "address",
+                  "name": "tokenAddress",
+                  "type": "address"
+                },
+                {
+                  "internalType": "enum WorkAgreement.JobStatus",
+                  "name": "status",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "string",
+                  "name": "title",
+                  "type": "string"
+                },
+                {
+                  "internalType": "string",
+                  "name": "description",
+                  "type": "string"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "deadline",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "string",
+                  "name": "jobURI",
+                  "type": "string"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "deliveredTimestamp",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "string",
+                  "name": "submissionURI",
+                  "type": "string"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
               "inputs": [],
-              "name": "withdraw",
+              "name": "owner",
+              "outputs": [
+                {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_jobId",
+                  "type": "uint256"
+                }
+              ],
+              "name": "raiseDispute",
               "outputs": [],
               "stateMutability": "nonpayable",
               "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_jobId",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "bool",
+                  "name": "_disputeUpheld",
+                  "type": "bool"
+                }
+              ],
+              "name": "resolveDispute",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "_resolver",
+                  "type": "address"
+                }
+              ],
+              "name": "setDisputeResolver",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_jobId",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "address",
+                  "name": "_selectedContractor",
+                  "type": "address"
+                }
+              ],
+              "name": "startContract",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_jobId",
+                  "type": "uint256"
+                }
+              ],
+              "name": "withdrawPayment",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "stateMutability": "payable",
+              "type": "receive"
             }
           ]
         }
